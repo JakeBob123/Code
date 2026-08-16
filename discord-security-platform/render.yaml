@@ -1,0 +1,85 @@
+# Render Blueprint — deploys all three services + a free Postgres instance
+# from one repo. In the Render dashboard: New -> Blueprint -> point at this
+# repo, and it reads this file automatically.
+#
+# Everything below is on the FREE plan. Read docs/DEPLOY_RENDER.md before
+# relying on this for anything that needs to stay reliably connected — free
+# web services spin down after 15 minutes idle, which drops the bot's
+# Discord connection until the next request wakes it back up.
+
+databases:
+  - name: aegis-db
+    plan: free
+    postgresMajorVersion: 16
+
+services:
+  # --- Backend: REST API + both WebSocket endpoints, single port ---
+  - type: web
+    name: aegis-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aegis-db
+          property: connectionString
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_OAUTH_REDIRECT_URI
+        sync: false # e.g. https://aegis-backend.onrender.com/api/auth/discord/callback
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: JWT_SIGNING_SECRET
+        generateValue: true
+      - key: JWT_EXPIRY
+        value: 15m
+      - key: REFRESH_TOKEN_EXPIRY_DAYS
+        value: '30'
+      - key: INTERNAL_WS_SHARED_SECRET
+        generateValue: true
+      - key: FRONTEND_ORIGIN
+        sync: false # e.g. https://aegis-dashboard.onrender.com
+
+  # --- Bot: discord.js gateway connection + tiny health server so it
+  #     qualifies as a free Web Service instead of a paid Background Worker ---
+  - type: web
+    name: aegis-bot
+    runtime: node
+    plan: free
+    rootDir: bot
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DASHBOARD_URL
+        sync: false # e.g. https://aegis-dashboard.onrender.com
+      - key: BACKEND_INTERNAL_WS_URL
+        value: wss://aegis-backend.onrender.com
+      - key: INTERNAL_WS_SHARED_SECRET
+        sync: false # must match the backend service's value exactly — copy it over manually after both are created
+
+  # --- Frontend: Next.js dashboard ---
+  - type: web
+    name: aegis-dashboard
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://aegis-backend.onrender.com
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://aegis-backend.onrender.com
+      - key: NEXT_PUBLIC_DISCORD_CLIENT_ID
+        sync: false

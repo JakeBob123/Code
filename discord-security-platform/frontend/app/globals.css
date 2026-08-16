@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  scrollbar-color: #2A2F52 #0D1224;
+  scrollbar-width: thin;
+}
+
+body {
+  background: radial-gradient(120% 140% at 15% -10%, #151B38 0%, #0A0E1A 55%, #080B14 100%);
+  color: #E8EAF6;
+}
+
+/* Visible keyboard focus everywhere — not just mouse-hover states */
+:focus-visible {
+  outline: 2px solid #9B82FF;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.hairline {
+  border-color: #232A4A;
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(27,33,64,0.6) 0%, rgba(18,23,43,0.6) 100%);
+  border: 1px solid #232A4A;
+  backdrop-filter: blur(6px);
+}
