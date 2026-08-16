@@ -50,13 +50,25 @@ class BackendClient {
       this.ws.send(JSON.stringify({ type: 'response', requestId: msg.requestId, payload }));
     });
 
-    this.ws.on('close', () => {
-      console.warn('[backend-client] disconnected, retrying...');
+    this.ws.on('close', (code, reasonBuf) => {
+      const reason = reasonBuf?.toString() || '(no reason given)';
+      console.warn(`[backend-client] disconnected (code ${code}: ${reason}), retrying in ${this.reconnectDelayMs}ms...`);
       this._scheduleReconnect();
     });
 
+    // Fires when the server rejects the WS upgrade with an HTTP error
+    // instead of completing the handshake — e.g. 401 (shared secret
+    // mismatch), 404 (wrong path/URL), or a 5xx from the host's proxy
+    // while the service is still waking up. Without this handler these
+    // failures show up as a bare, uninformative 'close' — this is the
+    // single most useful line for diagnosing a connection that won't
+    // come up, so it's always worth checking first.
+    this.ws.on('unexpected-response', (req, res) => {
+      console.error(`[backend-client] rejected by server: HTTP ${res.statusCode} ${res.statusMessage || ''}`.trim());
+    });
+
     this.ws.on('error', (err) => {
-      console.error('[backend-client] error:', err.message);
+      console.error(`[backend-client] error: ${err.code || 'UNKNOWN'} — ${err.message || '(no message)'}`);
     });
   }
 
